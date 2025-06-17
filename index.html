@@ -206,6 +206,46 @@
             100% { transform: rotate(360deg); }
         }
 
+        .search-section {
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .search-section input {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .search-section input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            outline: none;
+        }
+
+        .search-section input::placeholder {
+            color: #94a3b8;
+        }
+
+        .no-results {
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--text);
+            margin-top: 16px;
+            display: none;
+        }
+
+        .no-results.active {
+            display: block;
+        }
+
         .table-container {
             overflow-x: auto;
             display: none;
@@ -294,6 +334,12 @@
                 max-width: 100%;
             }
 
+            .search-section input {
+                max-width: 100%;
+                padding: 10px 14px;
+                font-size: 0.9rem;
+            }
+
             th, td {
                 padding: 12px;
                 font-size: 0.9rem;
@@ -315,6 +361,11 @@
 
             .file-name {
                 font-size: 0.8rem;
+            }
+
+            .search-section input {
+                padding: 8px 12px;
+                font-size: 0.85rem;
             }
 
             th, td {
@@ -346,6 +397,10 @@
         </div>
         <div id="error" class="error"></div>
         <div id="loader" class="loader"></div>
+        <div class="search-section">
+            <input type="text" id="searchInput" placeholder="Search by restaurant name or address">
+        </div>
+        <div id="noResults" class="no-results">No restaurants found.</div>
         <div class="table-container" id="tableContainer">
             <table id="restaurantTable">
                 <thead>
@@ -368,6 +423,10 @@
         const loader = document.getElementById('loader');
         const tableBody = document.getElementById('tableBody');
         const tableContainer = document.getElementById('tableContainer');
+        const searchInput = document.getElementById('searchInput');
+        const noResultsDiv = document.getElementById('noResults');
+
+        let allRestaurants = []; // Store full restaurant data for filtering
 
         // Enable/disable submit button and display file name
         fileInput.addEventListener('change', function() {
@@ -382,14 +441,25 @@
             }
         });
 
+        // Search functionality
+        searchInput.addEventListener('input', function() {
+            const query = searchInput.value.toLowerCase();
+            const filteredRestaurants = allRestaurants.filter(restaurant =>
+                restaurant.Res_Name.toLowerCase().includes(query) ||
+                restaurant.Address.toLowerCase().includes(query)
+            );
+            displayRestaurants(filteredRestaurants);
+            noResultsDiv.classList.toggle('active', filteredRestaurants.length === 0 && query !== '');
+        });
+
         submitBtn.addEventListener('click', handleFileUpload);
 
         // Load data from local storage on page load
         window.onload = function() {
             const storedData = localStorage.getItem('restaurantData');
             if (storedData) {
-                const restaurants = JSON.parse(storedData);
-                displayRestaurants(restaurants);
+                allRestaurants = JSON.parse(storedData);
+                displayRestaurants(allRestaurants);
             }
         };
 
@@ -403,6 +473,8 @@
             tableContainer.classList.remove('active');
             fileNameDisplay.textContent = '';
             fileNameDisplay.classList.remove('active');
+            noResultsDiv.classList.remove('active');
+            searchInput.value = '';
 
             if (!file) {
                 showError('No file selected.');
@@ -452,7 +524,7 @@
                         const searchQuery = `${rowData.Res_Name}, ${rowData.Branch_Name}`;
                         rowData.mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
                         return rowData;
-                    }).filter(row => row.Res_Name && row.Branch_Name); // Filter out invalid rows
+                    }).filter(row => row.Res_Name && rowData.Branch_Name); // Filter out invalid rows
 
                     if (restaurants.length === 0) {
                         showError('No valid restaurant data found in CSV.');
@@ -460,7 +532,8 @@
                         return;
                     }
 
-                    // Save to local storage
+                    // Save to local storage and update allRestaurants
+                    allRestaurants = restaurants;
                     localStorage.setItem('restaurantData', JSON.stringify(restaurants));
                     displayRestaurants(restaurants);
                     loader.style.display = 'none';
@@ -483,21 +556,27 @@
             errorDiv.classList.add('active');
             tableBody.innerHTML = '';
             tableContainer.classList.remove('active');
+            noResultsDiv.classList.remove('active');
         }
 
         function displayRestaurants(restaurants) {
             tableBody.innerHTML = '';
-            restaurants.forEach(restaurant => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${restaurant.ID || ''}</td>
-                    <td>${restaurant.Res_Name || ''}</td>
-                    <td>${restaurant.Address || ''}</td>
-                    <td><a href="${restaurant.mapLink}" target="_blank" rel="noopener noreferrer">View on Google Maps</a></td>
-                `;
-                tableBody.appendChild(row);
-            });
-            tableContainer.classList.add('active');
+            if (restaurants.length > 0) {
+                restaurants.forEach(restaurant => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${restaurant.ID || ''}</td>
+                        <td>${restaurant.Res_Name || ''}</td>
+                        <td>${restaurant.Address || ''}</td>
+                        <td><a href="${restaurant.mapLink}" target="_blank" rel="noopener noreferrer">View on Google Maps</a></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+                tableContainer.classList.add('active');
+                noResultsDiv.classList.remove('active');
+            } else {
+                tableContainer.classList.remove('active');
+            }
         }
     </script>
 </body>
