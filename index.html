@@ -210,6 +210,8 @@
             margin-bottom: 16px;
             display: flex;
             justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
         .search-section input {
@@ -232,6 +234,29 @@
 
         .search-section input::placeholder {
             color: #94a3b8;
+        }
+
+        .download-btn {
+            padding: 12px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .download-btn.active {
+            display: inline-block;
+        }
+
+        .download-btn:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px);
         }
 
         .no-results {
@@ -324,7 +349,8 @@
             }
 
             .file-input-label,
-            .upload-section button {
+            .upload-section button,
+            .download-btn {
                 padding: 10px 20px;
                 font-size: 0.9rem;
             }
@@ -368,6 +394,11 @@
                 font-size: 0.85rem;
             }
 
+            .download-btn {
+                padding: 8px 16px;
+                font-size: 0.85rem;
+            }
+
             th, td {
                 padding: 8px;
                 font-size: 0.8rem;
@@ -399,6 +430,7 @@
         <div id="loader" class="loader"></div>
         <div class="search-section">
             <input type="text" id="searchInput" placeholder="Search by restaurant name or address">
+            <button id="downloadBtn" class="download-btn">Download CSV</button>
         </div>
         <div id="noResults" class="no-results">No restaurants found.</div>
         <div class="table-container" id="tableContainer">
@@ -425,6 +457,7 @@
         const tableContainer = document.getElementById('tableContainer');
         const searchInput = document.getElementById('searchInput');
         const noResultsDiv = document.getElementById('noResults');
+        const downloadBtn = document.getElementById('downloadBtn');
 
         let allRestaurants = []; // Store full restaurant data for filtering
 
@@ -452,6 +485,26 @@
             noResultsDiv.classList.toggle('active', filteredRestaurants.length === 0 && query !== '');
         });
 
+        // Download CSV functionality
+        downloadBtn.addEventListener('click', function() {
+            const headers = ['ID', 'Res_Name', 'Address', 'mapLink'];
+            const csvRows = [headers.join(',')]; // Add header row
+            allRestaurants.forEach(restaurant => {
+                const row = headers.map(header => `"${(restaurant[header] || '').replace(/"/g, '""')}"`).join(',');
+                csvRows.push(row);
+            });
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'restaurants_export.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        });
+
         submitBtn.addEventListener('click', handleFileUpload);
 
         // Load data from local storage on page load
@@ -475,6 +528,7 @@
             fileNameDisplay.classList.remove('active');
             noResultsDiv.classList.remove('active');
             searchInput.value = '';
+            downloadBtn.classList.remove('active');
 
             if (!file) {
                 showError('No file selected.');
@@ -524,7 +578,7 @@
                         const searchQuery = `${rowData.Res_Name}, ${rowData.Branch_Name}`;
                         rowData.mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
                         return rowData;
-                    }).filter(row => row.Res_Name && rowData.Branch_Name); // Filter out invalid rows
+                    }).filter(row => row.Res_Name && row.Branch_Name); // Filter out invalid rows
 
                     if (restaurants.length === 0) {
                         showError('No valid restaurant data found in CSV.');
@@ -557,6 +611,7 @@
             tableBody.innerHTML = '';
             tableContainer.classList.remove('active');
             noResultsDiv.classList.remove('active');
+            downloadBtn.classList.remove('active');
         }
 
         function displayRestaurants(restaurants) {
@@ -573,9 +628,11 @@
                     tableBody.appendChild(row);
                 });
                 tableContainer.classList.add('active');
+                downloadBtn.classList.add('active');
                 noResultsDiv.classList.remove('active');
             } else {
                 tableContainer.classList.remove('active');
+                downloadBtn.classList.remove('active');
             }
         }
     </script>
